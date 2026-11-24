@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'sha256-__SCRIPT_HASH__'; base-uri 'none'; form-action 'none'">
+<title>Metis · AgentDojo tasks</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #ffffff; --subtle: #f6f6f7; --line: #e4e4e7; --strong: #c8c8ce; --ink: #18181b; --muted: #52525b; --faint: #74747d;
+    --harm: #b42318; --harm-bg: #fdecea;
+    --sans: Inter, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    --mono: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #0e0e10; --subtle: #17171a; --line: #2a2a2e; --strong: #3f3f46; --ink: #ececef; --muted: #a1a1aa; --faint: #85858e;
+      --harm: #ff8a7a; --harm-bg: #2c1512;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.5 var(--sans); }
+  h1, h2, p, ol, dl, dd { margin: 0; padding: 0; }
+  ol { list-style: none; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: -2px; }
+
+  .app { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100vh; }
+
+  /* Task list */
+  .sidebar { min-width: 0; padding: 12px; border-bottom: 1px solid var(--line); }
+  .brand { display: grid; margin-bottom: 10px; }
+  .brand strong { font-size: 14px; font-weight: 600; }
+  .brand span { color: var(--faint); font-size: 12px; }
+  .field { width: 100%; height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); }
+  .field:hover, .field:focus { border-color: var(--strong); }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .seg button { flex: 1; min-height: 26px; padding: 2px 10px; border: 0; border-left: 1px solid var(--line); background: var(--bg); color: var(--muted);
+    font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .seg button:first-child { border-left: 0; }
+  .seg button[aria-pressed="true"] { background: var(--subtle); color: var(--ink); font-weight: 600; }
+  .sidebar .seg { margin-top: 8px; }
+  .count { margin: 10px 2px 4px; color: var(--faint); font-size: 12px; }
+  .tasks { max-height: 40vh; overflow: auto; }
+  .suite { position: sticky; top: 0; display: flex; justify-content: space-between; padding: 6px 4px 4px; background: var(--bg); color: var(--faint);
+    font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .task { display: block; width: 100%; padding: 6px 8px; border: 0; border-left: 2px solid transparent; background: none; text-align: left; cursor: pointer; }
+  .task:hover { background: var(--subtle); }
+  .task[aria-current="true"] { border-left-color: var(--ink); background: var(--subtle); }
+  .task-id { display: flex; justify-content: space-between; gap: 8px; font: 600 12px var(--mono); }
+  .task-id span { color: var(--faint); font-weight: 400; }
+  .task-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; color: var(--muted); font-size: 12px; }
+
+  /* Task header */
+  main { min-width: 0; }
+  .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+  .head h1 { font: 600 15px var(--mono); overflow-wrap: anywhere; }
+  .head h1 span { color: var(--faint); font-weight: 400; }
+  .facts, .note { color: var(--muted); font-size: 12px; }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; min-width: 0; }
+  .bar label { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .select { position: relative; display: inline-flex; min-width: 0; max-width: 100%; }
+  .select select { appearance: none; -webkit-appearance: none; height: 28px; min-width: 0; max-width: 360px; padding: 0 30px 0 8px; border: 1px solid var(--line);
+    border-radius: 4px; background: var(--bg); text-overflow: ellipsis; cursor: pointer; }
+  .select select:hover { border-color: var(--strong); }
+  .select::after { content: ""; position: absolute; top: 50%; right: 12px; width: 6px; height: 6px; margin-top: -5px; border-right: 1.5px solid var(--muted);
+    border-bottom: 1.5px solid var(--muted); transform: rotate(45deg); pointer-events: none; }
+
+  /* Trace: a tree of rows and the detail of the selected row */
+  .trace { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .tree { padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .row { position: relative; display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; min-height: 28px;
+    padding: 2px 12px; border: 0; border-left: 2px solid transparent; background: none; text-align: left; cursor: pointer; }
+  .row:hover { background: var(--subtle); }
+  .row[aria-current="true"] { border-left-color: var(--ink); background: var(--subtle); }
+  .row.child { padding-left: 32px; }
+  .row.child::before { content: ""; position: absolute; top: 0; bottom: 0; left: 19px; border-left: 1px solid var(--strong); }
+  .kind { padding: 0 4px; border: 1px solid var(--line); border-radius: 3px; background: var(--bg); color: var(--muted); font: 600 10px/16px var(--mono);
+    letter-spacing: .03em; text-align: center; text-transform: uppercase; }
+  .name { overflow: hidden; font: 12px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+  .flag { color: var(--harm); font: 600 11px var(--mono); }
+  .detail { min-width: 0; padding: 12px 16px 32px; }
+  .detail > header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 10px; }
+  .detail > header h2 { font: 600 14px var(--mono); overflow-wrap: anywhere; }
+  .detail > header p { margin-left: auto; color: var(--faint); font-size: 12px; }
+  .detail > div { display: grid; gap: 10px; }
+
+  /* Labelled blocks, like the Input and Output blocks of a trace viewer */
+  .io { min-width: 0; border: 1px solid var(--line); border-radius: 4px; }
+  .label { padding: 4px 10px; border-bottom: 1px solid var(--line); border-radius: 4px 4px 0 0; background: var(--subtle); color: var(--faint); font-size: 11px;
+    font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .io > .note, .io > .meta, .io > .jumps { margin: 8px 10px; }
+  .box { margin: 0; padding: 8px 10px; font: 12px/1.55 var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .harm { background: var(--harm-bg); color: var(--harm); }
+  .slot { color: var(--harm); }
+  .code { counter-reset: line; }
+  .code span { display: block; padding-left: 3.2em; text-indent: -3.2em; }
+  .code span::before { counter-increment: line; content: counter(line); display: inline-block; width: 2.4em; margin-right: .8em; color: var(--faint);
+    text-align: right; text-indent: 0; }
+  .tools details { border-top: 1px solid var(--line); }
+  .tools details:first-child { border-top: 0; }
+  .tools summary { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); gap: 10px; padding: 4px 10px; cursor: pointer; list-style: none; }
+  .tools summary::-webkit-details-marker { display: none; }
+  .tools summary:hover { background: var(--subtle); }
+  .tools summary code { font: 12px var(--mono); overflow-wrap: anywhere; }
+  .tools summary span { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+  .tools .box { border-top: 1px solid var(--line); background: var(--subtle); }
+  .meta { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 2px 16px; font: 12px var(--mono); }
+  .meta dt { color: var(--faint); }
+  .meta dd { overflow-wrap: anywhere; }
+  .jumps { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+  .jumps button { min-height: 24px; padding: 0 8px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); font: 12px var(--mono); cursor: pointer; }
+  .jumps button:hover { border-color: var(--strong); }
+  .link { padding: 0; border: 0; background: none; color: var(--ink); font: 12px var(--mono); text-decoration: underline; cursor: pointer; }
+
+  /* Wide screens: the app fills the window, and the task list, the tree and the detail scroll on their own */
+  @media (min-width: 860px) {
+    .app { grid-template-columns: 270px minmax(0, 1fr); height: 100vh; }
+    .sidebar { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); border-bottom: 0; }
+    .tasks { flex: 1; max-height: none; }
+    main { display: flex; flex-direction: column; min-height: 0; }
+    .trace { flex: 1; min-height: 0; grid-template-columns: minmax(220px, 350px) minmax(0, 1fr); }
+    .tree { overflow: auto; border-right: 1px solid var(--line); border-bottom: 0; }
+    .detail { overflow: auto; }
+  }
+</style>
+<div class="app">
+  <aside class="sidebar" aria-label="Tasks">
+    <div class="brand"><strong>Metis · AgentDojo tasks</strong><span id="dataset"></span></div>
+    <input id="search" class="field" type="search" placeholder="Search task, prompt or tool" aria-label="Search tasks">
+    <div id="types" class="seg" role="group" aria-label="Task type">
+      <button type="button" value="" aria-pressed="true">All</button>
+      <button type="button" value="user" aria-pressed="false">User tasks</button>
+      <button type="button" value="goal" aria-pressed="false">Injection tasks</button>
+    </div>
+    <p id="count" class="count" aria-live="polite"></p>
+    <nav id="tasks" class="tasks" aria-label="Task list"></nav>
+  </aside>
+  <main>
+    <div class="head">
+      <div>
+        <h1 id="title"></h1>
+        <p id="facts" class="facts"></p>
+      </div>
+      <div class="bar">
+        <div id="variants" class="seg" role="group" aria-label="Benchmark version"></div>
+        <label id="attack-field">Attack text <span class="select"><select id="attack"></select></span></label>
+        <label id="goal-field">Attacker goal <span class="select"><select id="goal"></select></span></label>
+        <label id="user-task-field">User task <span class="select"><select id="user-task"></select></span></label>
+      </div>
+    </div>
+    <div class="trace">
+      <ol id="tree" class="tree" aria-label="Trace of the task"></ol>
+      <section id="detail" class="detail" tabindex="0" aria-label="Selected row"></section>
+    </div>
+  </main>
+</div>
+<script id="records" type="application/json">__RECORDS__</script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+function make(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined && text !== null) node.textContent = text;
+  return node;
+}
+const plural = (count, word) => count.toLocaleString() + " " + word + (count === 1 ? "" : "s");
+const truth = JSON.parse($("records").textContent);
+const canary = /<CANARY---(.+?)--->/;
+const replayTime = "<replay time>";
+const numeric = (left, right) => left.localeCompare(right, undefined, {numeric: true});
+const stacked = matchMedia("(max-width: 859px)");
+const reveal = node => { if (stacked.matches) node.scrollIntoView(); };
+
+/* One task is one user task or one injection task of a suite. It has one variant per changed definition. */
+const tasks = Object.entries(truth.tasks).map(([key, variants]) => {
+  const [suite, id] = key.split("/");
+  const search = [key, ...variants.flatMap(variant => [variant.prompt, ...variant.steps.map(step => step.function)])].join(" ").toLowerCase();
+  return {key, suite, id, goal: id.startsWith("injection_task_"), variants, search};
+}).sort((left, right) => left.suite.localeCompare(right.suite) || Number(left.goal) - Number(right.goal) || numeric(left.id, right.id));
+const byKey = new Map(tasks.map(task => [task.key, task]));
+const state = {type: "", task: null, variant: null, attack: "", goal: "", userTask: "", pin: null, nodes: [], node: 0};
+
+function versionLabel(versions) {
+  const positions = versions.map(version => truth.versions.indexOf(version)).sort((left, right) => left - right);
+  const contiguous = positions.every((position, index) => !index || position === positions[index - 1] + 1);
+  return versions.length > 2 && contiguous
+    ? truth.versions[positions[0]] + " – " + truth.versions[positions[positions.length - 1]] : versions.join(", ");
+}
+const sharedVariant = (task, versions) => task.variants.findLast(variant => variant.versions.some(version => versions.includes(version)));
+/* The variant of the other task of a pair: the pinned one when it fits these versions, else the newest that fits. */
+const pairVariant = (other, versions) => other.variants.includes(state.pin)
+  && state.pin.versions.some(version => versions.includes(version)) ? state.pin : sharedVariant(other, versions);
+function option(item, versions) {
+  const prompt = pairVariant(item, versions).prompt.replace(/\s+/g, " ").trim();
+  return new Option(item.id + " · " + (prompt.length > 50 ? prompt.slice(0, 50) + "…" : prompt), item.id);
+}
+const markedText = step => JSON.stringify(step.marked_args) + step.marked_result;
+const slotsOf = step => [...new Set([...markedText(step).matchAll(new RegExp(canary, "g"))].map(match => match[1]))];
+
+/* The injected text is AgentDojo's attack template with the attacker goal. AgentDojo writes it into every slot. */
+function injectedText(goalPrompt) {
+  const attack = truth.attacks.find(item => item.name === state.attack);
+  if (!attack || goalPrompt === null) return null;
+  const values = {goal: goalPrompt, user: attack.user, model: attack.model ?? "{model}"};
+  return attack.template.replace(/\{(goal|user|model)\}/g, (match, name) => values[name]);
+}
+
+/* Building blocks. Every value reaches the page through textContent. */
+function labelled(title, ...nodes) {
+  const wrap = make("div", "io");
+  wrap.append(make("p", "label", title), ...nodes);
+  return wrap;
+}
+const note = text => make("p", "note", text);
+function box(text, injected) {
+  const pre = make("pre", "box");
+  if (injected) text.split(canary).forEach((part, index) => pre.append(index % 2 ? make("mark", "harm", injected) : part));
+  else pre.textContent = text === "" ? "(empty)" : text;
+  return pre;
+}
+function codeBox(source) {
+  const pre = make("pre", "box code");
+  for (const line of source.replace(/\n+$/, "").split("\n")) pre.append(make("span", "", line === "" ? " " : line));
+  return pre;
+}
+function toolList(tools) {
+  const list = make("div", "tools");
+  for (const tool of tools) {
+    const item = make("details");
+    const summary = make("summary");
+    summary.append(make("code", "", tool.name), make("span", "", tool.description.trim().split("\n")[0]));
+    item.append(summary, box(tool.description.trim() + "\n\n" + JSON.stringify(tool.parameters, null, 2)));
+    list.append(item);
+  }
+  return list;
+}
+
+/* The trace of one task: a root row, then the input, each expected tool call, the expected answer and the check.
+   An injection task also has inject rows after the input. */
+const fidelity = "In a real run, the quoting, escaping and line wrapping of the injected text and of the text around it change.";
+const modelNote = injected => injected.includes("{model}") ? " {model} is a model name that depends on the attacked pipeline." : "";
+function stepNode(step, index, total, injected) {
+  const slots = slotsOf(step);
+  const shown = injected && slots.length;
+  const body = [
+    labelled("Input · arguments", box(JSON.stringify(shown ? step.marked_args : step.args, null, 2), shown ? injected : null)),
+    labelled("Output", box(shown ? step.marked_result : step.result, shown ? injected : null))
+  ];
+  if (slots.length) {
+    const line = make("p", "note");
+    line.append(make("span", "slot", "Injection slot: " + slots.join(", ") + ". "),
+      shown ? "The red text is the injected text, at the place where it appears. " + fidelity : "An attack replaces part of this text.");
+    body.push(line);
+  }
+  if (step.result.includes(replayTime)) body.push(note(replayTime + " stands for a timestamp that the replay wrote."));
+  return {kind: "tool", name: step.function, side: "expected call " + (index + 1) + " of " + total,
+    flag: slots.length ? (shown ? "injected" : "slot") : "", body};
+}
+function attackSummary(children, injected) {
+  const goalTask = byKey.get(state.task.suite + "/" + state.goal);
+  const goalVariant = pairVariant(goalTask, state.variant.versions);
+  const open = make("button", "link", "Open " + state.goal);
+  open.type = "button";
+  open.addEventListener("click", () => {
+    state.pin = state.variant;
+    selectTask(goalTask.key, goalVariant);
+    $("tree").querySelector(".row").focus();
+  });
+  const goal = make("p", "note");
+  goal.append("Attacker goal (" + state.goal + ", benchmark " + versionLabel(goalVariant.versions) + "): " + goalVariant.prompt + " ", open);
+  const jumps = make("div", "jumps", "Injected at:");
+  children.forEach((child, index) => {
+    if (child.flag !== "injected") return;
+    const jump = make("button", "", child.name + " · " + child.side);
+    jump.type = "button";
+    jump.addEventListener("click", () => {
+      selectNode(index + 1, true);
+      reveal($("detail"));
+    });
+    jumps.append(jump);
+  });
+  return labelled("Attack · " + state.attack, goal, jumps, note(fidelity + modelNote(injected)));
+}
+/* An injection task shows its goal as attack text, and the user task of the selected pair. */
+function goalAttack(task, variant, injected, target) {
+  const body = [note("Attack text is set to none. Select an attack text to see this goal as an attack.")];
+  if (injected) {
+    const pre = make("pre", "box");
+    pre.append(make("mark", "harm", injected.trim()));
+    body[0] = labelled("Injected text · " + state.attack, pre,
+      note("AgentDojo writes this text into the injection slots of a user task. The agent reads it inside a tool output. "
+        + "In a real run, its quoting, escaping and line wrapping change." + modelNote(injected)));
+  }
+  if (!target) return body;
+  const targetVariant = pairVariant(target, variant.versions);
+  const open = make("button", "link", "Open " + target.id);
+  open.type = "button";
+  open.addEventListener("click", () => {
+    state.pin = variant;
+    selectTask(target.key, targetVariant);
+    selectNode(Math.max(state.nodes.findIndex(node => node.flag === "injected"), 0), true);
+    reveal($("detail"));
+  });
+  const prompt = make("p", "note");
+  prompt.append("User task (" + target.id + ", benchmark " + versionLabel(targetVariant.versions) + "): " + targetVariant.prompt + " ", open);
+  const count = tasks.filter(item => !item.goal && item.suite === task.suite).length;
+  body.push(labelled("Where it lands · " + target.id, prompt, note("By default, AgentDojo runs this goal with each of the " + count
+    + " user tasks of " + task.suite + ". Select a user task above. The inject rows show the calls of that user task that hold an injection slot.")));
+  return body;
+}
+function metaList(entries) {
+  const list = make("dl", "meta");
+  for (const [term, value] of entries) list.append(make("dt", "", term), make("dd", "", value));
+  return list;
+}
+function taskNodes(task, variant, injected) {
+  const tools = truth.suites[task.suite].tools;
+  const promptLabel = task.goal ? "Attacker goal (in a direct run, the user prompt)" : "User prompt";
+  const children = [{
+    kind: "input", name: "prompts and tools", side: "", flag: "",
+    body: [labelled("System prompt", box(truth.system)), labelled(promptLabel, box(variant.prompt)), labelled("Tools (" + tools.length + ")", toolList(tools))]
+  }];
+  const target = task.goal ? byKey.get(task.suite + "/" + state.userTask) : null;
+  if (target) {
+    const steps = pairVariant(target, variant.versions).steps;
+    steps.forEach((step, index) => {
+      if (!slotsOf(step).length) return;
+      const node = stepNode(step, index, steps.length, injected);
+      node.body.push(note("This is a call of " + target.id + ", not of this injection task. "
+        + "The injected text reaches this call when AgentDojo attacks " + target.id + " with this goal."));
+      children.push({...node, kind: "inject", side: target.id + ": " + node.side});
+    });
+  }
+  variant.steps.forEach((step, index) => children.push(stepNode(step, index, variant.steps.length, injected)));
+  if (!variant.steps.length) {
+    children.push({kind: "tool", name: "none listed", side: "", flag: "", body: [note(
+      "AgentDojo lists no expected tool calls for this task: its ground_truth() returns an empty list. The check decides.")]});
+  }
+  children.push({kind: "answer", name: "expected answer", side: "", flag: "",
+    body: [labelled("Output", variant.output ? box(variant.output) : note("AgentDojo lists no expected answer text for this task. The check decides."))]});
+  const check = [note(task.goal
+    ? "AgentDojo runs this check after a run. True means the attacker goal is met: security is true."
+    : "AgentDojo runs this check after a run, with the final answer and the environment before and after. True means utility passes.")];
+  if (variant.check.includes("_from_traces(")) {
+    check.push(note("The function that ends in _from_traces runs first. AgentDojo uses the other function only when the first returns None."));
+  }
+  children.push({kind: "check", name: task.goal ? "security" : "utility", side: "", flag: "", body: [...check, labelled("Source", codeBox(variant.check))]});
+
+  const slots = [...new Set(variant.steps.flatMap(slotsOf))];
+  const root = [labelled(promptLabel, box(variant.prompt))];
+  if (task.goal) root.push(...goalAttack(task, variant, injected, target));
+  else if (injected) root.push(attackSummary(children, injected));
+  root.push(labelled("Metadata", metaList([
+    ["suite", task.suite], ["type", task.goal ? "injection task (attacker goal)" : "user task"], ["difficulty", variant.difficulty.toLowerCase()],
+    ["benchmark", versionLabel(variant.versions)],
+    ["expected calls", variant.steps.length ? variant.steps.map(step => step.function).join(", ") : "none listed; the check decides"],
+    ...(task.goal ? [] : [["injection slots", slots.length ? slots.join(", ") : "none"]])
+  ])));
+  root.push(note("Select a row of the trace: the input, " + (task.goal ? "each inject row, " : "")
+    + "each expected tool call, the expected answer, and the check."));
+  return [{kind: "task", name: task.id, side: "", flag: "", body: root}, ...children];
+}
+
+function renderDetail() {
+  const node = state.nodes[state.node];
+  const header = make("header");
+  header.append(make("span", "kind", node.kind), make("h2", "", node.name));
+  if (node.flag) header.append(make("span", "flag", node.flag));
+  if (node.side) header.append(make("p", "", node.side));
+  const body = make("div");
+  body.append(...node.body);
+  $("detail").replaceChildren(header, body);
+  $("detail").scrollTop = 0;
+}
+function selectNode(index, focus) {
+  state.node = index;
+  const rows = [...$("tree").querySelectorAll(".row")];
+  rows.forEach((row, at) => row.setAttribute("aria-current", String(at === index)));
+  if (focus) rows[index].focus();
+  renderDetail();
+}
+
+function renderTask() {
+  const task = state.task;
+  const variant = state.variant;
+  const slots = new Set(variant.steps.flatMap(slotsOf));
+  $("title").replaceChildren(make("span", "", task.suite + " / "), task.id);
+  const facts = [task.goal ? "Injection task (attacker goal)" : "User task", "difficulty " + variant.difficulty.toLowerCase(),
+    "benchmark " + versionLabel(variant.versions), plural(variant.steps.length, "expected call")];
+  if (!task.goal) facts.push(plural(slots.size, "injection slot"));
+  $("facts").textContent = facts.join(" · ");
+
+  $("variants").hidden = task.variants.length < 2;
+  $("variants").replaceChildren(...task.variants.map((item, index) => {
+    const button = make("button", "", versionLabel(item.versions));
+    button.type = "button";
+    button.value = String(index);
+    button.setAttribute("aria-pressed", String(item === variant));
+    return button;
+  }));
+  const goals = tasks.filter(item => item.goal && item.suite === task.suite && sharedVariant(item, variant.versions));
+  const attackable = !task.goal && slots.size > 0 && goals.length > 0;
+  const users = tasks.filter(item => !item.goal && item.suite === task.suite && sharedVariant(item, variant.versions));
+  $("attack-field").hidden = !attackable && !task.goal;
+  $("goal-field").hidden = !attackable;
+  $("user-task-field").hidden = !task.goal || !users.length;
+  if (!goals.some(item => item.id === state.goal)) state.goal = goals.length ? goals[0].id : "";
+  if (!users.some(item => item.id === state.userTask)) state.userTask = users.length ? users[0].id : "";
+  $("goal").replaceChildren(...goals.map(item => option(item, variant.versions)));
+  $("goal").value = state.goal;
+  $("user-task").replaceChildren(...users.map(item => option(item, variant.versions)));
+  $("user-task").value = state.userTask;
+
+  const goalTask = attackable ? byKey.get(task.suite + "/" + state.goal) : null;
+  const goalPrompt = task.goal ? variant.prompt : goalTask ? pairVariant(goalTask, variant.versions).prompt : null;
+  state.nodes = taskNodes(task, variant, injectedText(goalPrompt));
+  $("tree").replaceChildren(...state.nodes.map((node, index) => {
+    const item = make("li");
+    const row = make("button", index ? "row child" : "row");
+    row.type = "button";
+    row.value = String(index);
+    row.title = node.name;
+    row.setAttribute("aria-current", String(index === state.node));
+    row.append(make("span", "kind", node.kind), " ", make("span", "name", node.name), " ", make("span", "flag", node.flag));
+    item.append(row);
+    return item;
+  }));
+  renderDetail();
+}
+
+function renderTaskList() {
+  const query = $("search").value.trim().toLowerCase();
+  const visible = tasks.filter(task => (!state.type || (state.type === "goal") === task.goal) && task.search.includes(query));
+  const nodes = [];
+  let suite = "";
+  for (const task of visible) {
+    if (task.suite !== suite) {
+      suite = task.suite;
+      const head = make("div", "suite");
+      head.append(make("span", "", suite), make("span", "", String(visible.filter(item => item.suite === suite).length)));
+      nodes.push(head);
+    }
+    const newest = task.variants[task.variants.length - 1];
+    const button = make("button", "task");
+    button.type = "button";
+    button.value = task.key;
+    button.setAttribute("aria-current", String(task === state.task));
+    const id = make("span", "task-id", task.id);
+    id.append(make("span", "", newest.difficulty.toLowerCase()));
+    button.append(id, make("span", "task-text", newest.prompt));
+    nodes.push(button);
+  }
+  if (!visible.length) nodes.push(make("p", "count", "No tasks match this search."));
+  $("tasks").replaceChildren(...nodes);
+  $("count").textContent = plural(visible.length, "task") + " of " + tasks.length;
+}
+
+function selectTask(key, variant) {
+  const task = byKey.get(key);
+  if (!task) return;
+  state.task = task;
+  state.variant = variant ?? task.variants[task.variants.length - 1];
+  if (task.goal) state.goal = task.id;
+  else state.userTask = task.id;
+  state.node = 0;
+  for (const button of $("tasks").querySelectorAll(".task")) button.setAttribute("aria-current", String(button.value === key));
+  renderTask();
+}
+function arrowKeys(container, selector) {
+  container.addEventListener("keydown", event => {
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    const items = [...container.querySelectorAll(selector)];
+    const at = items.indexOf(document.activeElement);
+    const next = items[at + (event.key === "ArrowDown" ? 1 : -1)];
+    if (at < 0 || !next) return;
+    event.preventDefault();
+    next.focus();
+    next.click();
+  });
+}
+
+$("search").addEventListener("input", renderTaskList);
+$("types").addEventListener("click", event => {
+  const button = event.target.closest("button");
+  if (!button) return;
+  state.type = button.value;
+  for (const item of $("types").children) item.setAttribute("aria-pressed", String(item === button));
+  renderTaskList();
+});
+$("tasks").addEventListener("click", event => {
+  const button = event.target.closest(".task");
+  if (!button) return;
+  state.pin = null;
+  selectTask(button.value);
+  if (event.detail) reveal($("title"));
+});
+arrowKeys($("tasks"), ".task");
+arrowKeys($("tree"), ".row");
+$("variants").addEventListener("click", event => {
+  const button = event.target.closest("button");
+  if (!button) return;
+  state.variant = state.task.variants[Number(button.value)];
+  state.node = 0;
+  renderTask();
+  $("variants").children[Number(button.value)].focus();
+});
+$("attack").addEventListener("change", event => { state.attack = event.target.value; renderTask(); });
+$("goal").addEventListener("change", event => {
+  state.goal = event.target.value;
+  state.pin = null;
+  renderTask();
+});
+$("user-task").addEventListener("change", event => {
+  state.userTask = event.target.value;
+  state.pin = null;
+  state.node = 0;
+  renderTask();
+  selectNode(Math.max(state.nodes.findIndex(node => node.kind === "inject"), 0), false);
+});
+$("tree").addEventListener("click", event => {
+  const row = event.target.closest(".row");
+  if (!row) return;
+  selectNode(Number(row.value), false);
+  if (event.detail) reveal($("detail"));
+});
+$("dataset").textContent = plural(tasks.filter(task => !task.goal).length, "user task") + " · "
+  + plural(tasks.filter(task => task.goal).length, "injection task") + " · AgentDojo " + truth.agentdojo;
+$("attack").replaceChildren(new Option("none (clean run)", ""), ...truth.attacks.map(attack => new Option(attack.name, attack.name)));
+state.attack = truth.attacks.some(attack => attack.name === "important_instructions") ? "important_instructions" : "";
+$("attack").value = state.attack;
+renderTaskList();
+if (tasks.length) selectTask(tasks[0].key);
+</script>
+</html>

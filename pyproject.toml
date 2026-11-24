@@ -1,0 +1,35 @@
+[project]
+name = "metis"
+version = "0.1.0"
+description = "A prompt-injection guard: data builders, a training engine and offline viewer pages."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+# Training the guard model needs laya and with it torch. The viewer and the data tools need neither.
+train = ["laya==0.5.2"]
+
+[dependency-groups]
+dev = ["pyright", "pytest", "ruff"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/metis"]
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.pytest.ini_options]
+python_files = ["*.py"]
+testpaths = ["tests"]
+
+[tool.pyright]
+include = ["src", "tests"]
+# This package imports AgentDojo, which is not a project dependency. Check it inside `uv run --with agentdojo==0.1.35`.
+exclude = ["src/metis/data/dojo/extract"]

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="492" viewBox="0 0 1440 492" role="img" aria-labelledby="title desc">
+  <title id="title">Metis prompt-injection guard</title>
+  <desc id="desc">Metis labels individual fields from NVIDIA tasks, augments training rows and tunes a ModernBERT guard. The saved guard scores one tool-output field at a time. Offline evaluation uses held-out NVIDIA templates and AgentDojo fields. AgentDojo informed recipe selection.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0 0 L7 3.5 L0 7Z" fill="#39434d"/></marker>
+  </defs>
+  <style>
+    text{font-family:Arial,Helvetica,sans-serif;fill:#27313a}
+    .heading{font-size:24px}.label{font-size:21px}.note{font-size:17px;fill:#515e68}
+    .arrow{stroke:#39434d;stroke-width:1.6;fill:none;marker-end:url(#arrow)}
+    .paper{fill:#fbfbfa;stroke:#59616a;stroke-width:1.5}
+    .rule{stroke:#a1abb2;stroke-width:2}
+  </style>
+  <rect width="1440" height="492" fill="white"/>
+  <text x="40" y="46" class="heading"><tspan font-weight="bold">(a)</tspan> Build and train the guard</text>
+  <text x="845" y="46" class="heading"><tspan font-weight="bold">(b)</tspan> Score one tool-output field</text>
+  <path d="M810 72V353" stroke="#c8d0d5" stroke-dasharray="4 6"/>
+  <g text-anchor="middle">
+    <path d="M72 110H147L165 128V218H72Z M147 110V128H165" class="paper"/>
+    <path d="M88 142H145 M88 159H150 M88 176H134 M88 193H144" class="rule"/>
+    <text x="118" y="262" class="label">NVIDIA tasks</text>
+    <text x="118" y="291" class="note">Extract text fields</text>
+    <path d="M187 166H244" class="arrow"/>
+    <rect x="272" y="119" width="153" height="27" rx="3" fill="#f7e5d3" stroke="#b8774c"/>
+    <rect x="272" y="153" width="153" height="27" rx="3" fill="#edf3f4" stroke="#809ca3"/>
+    <rect x="272" y="187" width="153" height="27" rx="3" fill="#edf3f4" stroke="#809ca3"/>
+    <text x="348" y="139" font-size="16">Injected field</text>
+    <text x="348" y="173" font-size="16">Clean twin</text>
+    <text x="348" y="207" font-size="16">Padded clean field</text>
+    <text x="348" y="262" class="label">Label and split</text>
+    <text x="348" y="291" class="note">Keep task rows together</text>
+    <text x="348" y="316" class="note">Vary wording in training copies</text>
+    <path d="M453 166H534" class="arrow"/>
+    <path d="M557 138L586 115H690L719 138V195L690 218H586L557 195Z" fill="#f9f0e8" stroke="#b8774c" stroke-width="1.6"/>
+    <text x="638" y="162" font-size="27">laya</text>
+    <text x="638" y="188" class="note">ModernBERT</text>
+    <text x="638" y="262" class="label">Fine-tune the guard</text>
+    <text x="638" y="291" class="note">Select weights on validation data</text>
+    <text x="638" y="316" class="note">Save the checkpoint</text>
+    <path d="M860 127H977V206H860Z" class="paper"/>
+    <path d="M876 146H956 M876 164H944 M876 183H960" class="rule"/>
+    <text x="918" y="262" class="label">Field text</text>
+    <path d="M991 166H1044" class="arrow"/>
+    <path d="M1060 144L1088 122H1162L1190 144V188L1162 210H1088L1060 188Z" fill="#f9f0e8" stroke="#b8774c" stroke-width="1.6"/>
+    <text x="1125" y="174" class="label">Guard</text>
+    <text x="1125" y="262" class="label">Saved weights</text>
+    <path d="M1205 166H1251" class="arrow"/>
+    <path d="M1270 166H1390" stroke="#809ca3" stroke-width="8"/>
+    <path d="M1330 166H1390" stroke="#b8774c" stroke-width="8"/>
+    <path d="M1330 151V180" stroke="#39434d" stroke-width="2"/>
+    <text x="1270" y="201" class="note">0</text><text x="1330" y="201" class="note">0.5</text><text x="1390" y="201" class="note">1</text>
+    <text x="1330" y="262" class="label">Harmful score</text>
+    <text x="1330" y="291" class="note">Flag scores ≥ 0.5</text>
+  </g>
+  <path d="M40 356H1400" stroke="#c8d0d5"/>
+  <text x="40" y="400" class="label" font-weight="bold">Offline evaluation</text>
+  <text x="280" y="400" class="label">NVIDIA held-out templates</text>
+  <text x="280" y="435" class="note">F1 0.968 across 1,605 fields</text>
+  <text x="845" y="400" class="label">AgentDojo</text>
+  <text x="845" y="435" class="note">2,075 of 2,080 injections flagged · 4 of 249 clean fields flagged</text>
+  <text x="845" y="460" class="note">These results informed the choice of training recipe.</text>
+</svg>
